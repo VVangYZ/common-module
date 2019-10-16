@@ -198,7 +198,7 @@ class ReportPile(Report):
             self.doc.append(NoEscape('\n'))
             self.doc.append(t5)
             with self.doc.create(Figure(position='htbp')) as plot:
-                plot.add_plot(width=NoEscape(r'1.2\textwidth'), dpi=300)
+                plot.add_plot(width=NoEscape(r'1\textwidth'), dpi=300)
             self.doc.append(NoEscape('\n'))
             self.doc.append(t6)
             with self.doc.create(LongTable('p{1.5cm}|ll|ll')) as pll:
