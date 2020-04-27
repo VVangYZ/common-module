@@ -71,24 +71,22 @@ class Wind():
 
 
 class BeamWind():
-    """主梁风荷载
-    
-    参数：
-        wind：设计风实例，如缺少则输入 0，直接输入 ud
-        shape：主梁断面形状（list，单位：m）
-            -闭口流线型箱梁：[高度]
-            -工字形梁和Ⅱ字梁：[宽度，高度]
-            -箱型：[宽度，高度，腹板倾角]
-            -桁架：[杆件形状，实面积比，中心距，高度，*各杆件高度]
-                --杆件形状：1、2（矩形或 H 形、圆形）
-        z：主梁高度(m)
-        l：单跨长度(m)
-        rho：空气密度(kg/m3)
-        ud：如果缺少设计风资料，用于估计风速值，默认地表为 A (m/s)
-    """
-
     def __init__(self, wind, shape, z, l, rho=1.25, ud=25):
-        """构造函数"""
+        """主梁风荷载
+            
+            参数：
+                wind：设计风实例，如缺少则输入 0，直接输入 ud
+                shape：主梁断面形状（list，单位：m）
+                    -闭口流线型箱梁：[高度]
+                    -工字形梁和Ⅱ字梁：[宽度，高度]
+                    -箱型：[宽度，高度，腹板倾角]
+                    -桁架：[杆件形状，实面积比，中心距，高度，*各杆件高度]
+                        --杆件形状：1、2（矩形或 H 形、圆形）
+                z：主梁高度(m)
+                l：单跨长度(m)
+                rho：空气密度(kg/m3)
+                ud：如果缺少设计风资料，用于估计风速值，默认地表为 A (m/s)
+            """
         self.wind = wind
         self.rho = rho
         self.z = z
@@ -107,7 +105,7 @@ class BeamWind():
             # 闭口流线型箱梁，参数为高度
             self.D = shape[0]
             self.CH = 1.1
-            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * shape[0]
+            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * z
         elif len(shape) == 2:
             # 工字形或Ⅱ字形，参数为宽度与高度
             self.D = shape[1]
@@ -115,7 +113,7 @@ class BeamWind():
             if bd <= 8:
                 self.CH = 2.1 - 0.1 * bd
             else:self.CH = 1.3
-            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * shape[1]
+            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * z
         elif len(shape) == 3:
             # 箱型，参数为宽度高度和腹板倾角
             self.D = shape[1]
@@ -126,7 +124,7 @@ class BeamWind():
             if shape[2] < 60:
                 self.CH *= 1 - 0.005 * shape[2]
             else:self.CH *= 0.7
-            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * shape[1]
+            self.Fg = 1/2 * rho * self.Ug ** 2 * self.CH * z
         else:
             # 桁架，参数为形状、实面积比、中心距、桁架高度、各杆件高度
             self.D = shape[4:]

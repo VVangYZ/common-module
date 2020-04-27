@@ -6,10 +6,7 @@ import pandas as pd
 import numpy as np
 
 import matplotlib
-matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
-plt.rcParams['font.sans-serif'] = ['SimHei']    # 绘图支持中文
 
 import os
 
@@ -25,11 +22,15 @@ class Soil():
     rho：土层加权平均重度 (kN/m3)，默认为 18
     """
 
-    def __init__(self, rho=18):
+    def __init__(self, prop=None, rho=18):
         """构造函数"""
-
-        self.prop = pd.read_csv('soil.csv')
-        self.rho = rho
+        if prop is not None:
+            self.prop = prop
+            self.rho = np.average(self.prop['gamma'], weights=self.prop['height'])
+        else:
+            self.prop = pd.read_csv('soil.csv')
+            self.rho = rho
+            
 
 
 class Pile_mc_zk():
@@ -68,12 +69,14 @@ class Pile_mc_zk():
         for i, j in self.soil.prop.iterrows():
             if j['height'] > self.h2:
                 self.ra1 += 1/2 * self.u * j['qik'] * j['depth']
-                self.permeable = j['per']
             else:
                 self.ra1 += 1/2 * self.u * j['qik'] * (j['depth'] - (self.h2 - j['height']))
                 self.fa0 = j['fa0']
                 self.permeable = j['per']
                 break
+        else:
+            self.permeable = j['per']
+            self.fa0 = j['fa0']
         # 修正系数
         if self.permeable:
             self.lam = np.interp(l/d, [20, 25], [0.7, 0.85])
@@ -170,6 +173,7 @@ class Pile_dc():
             self.cc2 = 0.03
         else:
             print('输入错误！')
+            raise Exception
         # 根据桩基类型折减 c1/c2
         self.type = type
         if type == 1:
@@ -185,19 +189,16 @@ class Pile_dc():
         self.h0 = self.soil.prop['height'][0] + self.soil.prop['depth'][0]
 
         for i, j in self.soil.prop.iterrows():
+            self.c1.append(self.cc1)
+            self.c2.append(self.cc2)
             if j['height'] > self.h2:
-                self.c1.append(self.cc1)
-                self.c2.append(self.cc2)
                 if j['frk'] > 0:
                     if j['depth'] <= 0.5: self.c2[-1] = 0
                     if '中风化' in j['name']: self.c2[-1] *= 0.75
-
                     self.ra2 += self.c2[-1] * self.u * j['frk'] * j['depth']
                 else:
                     self.ra1 += 1/2 * self.u * j['qik'] * j['depth']
             else:
-                self.c1.append(self.cc1)
-                self.c2.append(self.cc2)
                 if j['frk'] >= 2000:
                     if j['frk'] < 15000: self.xi = 0.8
                     elif j['frk'] < 30000: self.xi = 0.5
@@ -216,6 +217,23 @@ class Pile_dc():
                     self.xi = 1
                     self.ra1 += 1/2 * self.u * j['qik'] * (j['depth'] - (self.h2 - j['height']))
                 break
+        else:
+            if j['frk'] >= 2000:
+                if j['frk'] < 15000: self.xi = 0.8
+                elif j['frk'] < 30000: self.xi = 0.5
+                else: self.xi = 0.2
+                if j['depth'] - (self.h2 - j['height']) < 0.5:
+                    self.c1[-1] *= 0.75
+                    self.c2[-1] = 0
+                if '中风化' in j['name']:
+                    self.c1[-1] *= 0.75
+                    self.c2[-1] *= 0.75
+                self.ra2 +=  self.c2[-1] * self.u * j['frk'] * (j['height'] - self.h2)
+                self.ra3 += self.c1[-1] * self.ap * j['frk']
+            else:
+                self.xi = 1
+                self.ra1 += 1/2 * self.u * j['qik'] * (j['height'] - self.h2)
+
         # 端部承载力
         self.ra1 *= self.xi
         self.ra0 = self.ra1 + self.ra2 + self.ra3
@@ -254,6 +272,9 @@ def pile_l(llist, soil, d, F, h1=0, rho=26, t=0, k2=1.5, type=1, com=1):
     d：桩基直径
     F：桩顶力
     """
+
+    matplotlib.use('Agg')
+    plt.rcParams['font.sans-serif'] = ['SimHei']    # 绘图支持中文
 
     pile_ra_1 = []
     pile_ra_2 = []
