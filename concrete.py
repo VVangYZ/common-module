@@ -14,8 +14,8 @@ class RectangleCompress:
         矩形截面偏心受压构件计算
         :param b: 矩形宽度，m
         :param h: 矩形高度，m
-        :param ad1: 受拉钢筋直径，mm2
-        :param ad2: 受压钢筋直径，mm2
+        :param ad1: 受拉钢筋直径，mm
+        :param ad2: 受压钢筋直径，mm
         :param anum1: 受拉钢筋根数
         :param anum2: 受压钢筋根数
         :param fcd: 混凝土抗压强度设计值，Mpa
@@ -45,15 +45,32 @@ class RectangleCompress:
     def capacity(self, nd, md, r=1.1):
         self.e0 = md / nd  # 截面偏心距
         self.e = self.e0 + self.h / 2 - self.a1  # 截面相对受拉钢筋偏心距
+        self.m_load = r * nd * self.e
 
-        x = sympy.Symbol('x')
-        self.x = sympy.solve(r * nd * 1e3 - self.fcd * self.b * x * 1e6 -
-                             self.fsd2 * self.as2 + self.fsd1 * self.as1, x)[0]
+        def nud_cal(x):
+            nud = self.fcd * self.b * x * 1e3 + self.fsd2 * self.as2 / 1e3 - self.fsd1 * self.as1 / 1e3
+            return nud
+
+        def mud_cal(x):
+            mud = self.fcd * self.b * x * (self.h0 - x / 2) * 1e3
+            mud += self.fsd2 * self.as2 * (self.h0 - self.a2) / 1e3
+            return mud
+
+        def e0_cal(x):
+            return mud_cal(x) - self.e * nud_cal(x)
+
+        self.x = optimize.root(e0_cal, self.h0 * 0.5).x[0]
+
+        # x = sympy.Symbol('x')
+        # self.x = sympy.solve(r * nd * 1e3 - self.fcd * self.b * x * 1e6 -
+        #                      self.fsd2 * self.as2 + self.fsd1 * self.as1, x)[0]
+
         self.xi = self.x / self.h0  # 截面相对受压区高度
         self.type = 'Large' if self.xi <= self.xi_b else 'Small'
-        self.m_load = r * nd * self.e
-        self.m_resistance = self.fcd * self.b * self.x * (self.h0 - self.x / 2) * 1e3 + \
-                            self.fsd2 * self.as2 * (self.h0 - self.a2) / 1e3
+        self.n_resistance = nud_cal(self.x)
+        self.m_resistance = mud_cal(self.x)
+        # self.m_resistance = self.fcd * self.b * self.x * (self.h0 - self.x / 2) * 1e3 + \
+        #                     self.fsd2 * self.as2 * (self.h0 - self.a2) / 1e3
 
         return self.m_load, self.m_resistance
 
@@ -205,7 +222,7 @@ class CircularCompress:
         ak = (self.hoop / 2) ** 2 * np.pi * 2 / 1e2         # 同一截面上箍筋面积（cm2）
         vs = min(0.1 * ak * (0.9 * self.d * 1e2) * fyh / (sk / 10), 0.067 * fc1 ** 0.5 * ae)
         self.vr = vc + vs
-        safe = self.vr / vc0
+        safe = abs(self.vr / vc0)
 
         return safe
 
@@ -213,8 +230,16 @@ class CircularCompress:
 # a = RectangleCompress(1.8, 1.8, get_as(36, 10), get_as(36, 10), 18.4, 415, 400, 0.08, 0.08)
 
 if __name__ == '__main__':
-    a = CircularCompress(2, 38, 32, 13.8, 415, 400)
-    a.capacity(7000, 8600)
-    a.crack_width(6000, 5000)
-    a.shear_capacity(30, 150, 1000)
+    # a = CircularCompress(1.6, 29, 32, 13.8, 415, 400)
+    # a.capacity(3800, 5800)
+    # a.nud / (3800 * 1.1)
+    # a.crack_width(6000, 5000)
+    # a.shear_capacity(30, 150, 1000)
+    b = RectangleCompress(1.8, 1.8, 32, 32, 17, 17, 22.4, 415, 400, 0.094, 0.094)
+    b.capacity(3434, 7867, 1)
+    print(b.m_load, b.m_resistance)
+
+
+
+
 
