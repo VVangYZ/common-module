@@ -156,7 +156,7 @@ class ReportPile(Report):
 
         t1 = f'''桩基直径：$d={pile.d:.2f}\,m$\n
         桩基周长：$u={pile.u:.2f}\,m$\n
-        桩基截面积：$A_p={pile.ap:.2f}\,m^2$\n
+        桩基截面积：$A_p={pile.pd:.2f}\,m^2$\n
         桩基密度：$\gamma={pile.rho:.1f}\,kN/m^3$\n
         容许承载力随深度的修正系数：$k_2={pile.k2:.1f}$\n
         各土层加权平均重度：$\gamma_2={self.soil.rho:.1f}\,kN/m^3$\n

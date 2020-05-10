@@ -227,7 +227,83 @@ class CircularCompress:
         return safe
 
 
-# a = RectangleCompress(1.8, 1.8, get_as(36, 10), get_as(36, 10), 18.4, 415, 400, 0.08, 0.08)
+class RectangleBend:
+    def __init__(self, b, h, fcd, ad1, anum1, fsd1, ad2, anum2, fsd2, pd=15.4, pnum=0, fpd=1260, a=50, hoop=16):
+        """
+        :param b: 矩形截面宽度，m
+        :param h: 矩形截面高度，m
+        :param fcd: 混凝土抗压强度设计值，MPa
+
+        :param ad1: 受拉钢筋直径，mm
+        :param anum1: 受拉钢筋根数
+        :param fsd1: 钢筋抗拉强度设计值，MPa
+        :param ad2: 受压钢筋直径，mm
+        :param anum2: 受压钢筋根数
+        :param fsd2: 钢筋抗压强度设计值，MPa
+        :param pd: 预应力钢束直径，mm
+        :param pnum: 预应力钢束根数
+        :param fpd: 预应力钢束抗拉强度设计值，MPa
+        :param a: 结构保护层厚度，mm
+        :param hoop: 箍筋直径，mm
+        """
+        self.b = b
+        self.h = h
+        self.ad1 = ad1
+        self.ad2 = ad2
+        self.pd = pd
+        self.anum1 = anum1
+        self.anum2 = anum2
+        self.pnum = pnum
+        self.as1 = get_as(ad1, anum1)
+        self.as2 = get_as(ad2, anum2)
+        self.ap = get_as(pd, pnum)
+        self.a = a
+        self.fcd = fcd
+        self.fsd1 = fsd1
+        self.fsd2 = fsd2
+        self.fpd = fpd
+        self.hoop = hoop
+
+        self.xi_b = 0.49
+        self.aa = a + hoop + ad1 / 2        # 钢筋合力点到边缘
+        self.h0 = h - self.aa / 1e3
+
+        self.x = 0
+        self.m_resistance = 0
+
+        self.vcs = 0
+        self.vpd = 0
+        self.vr = 0
+
+    def capacity(self, md=1):
+        """
+
+        :param md: 弯矩设计值，kN.m
+        :return: 安全系数
+        """
+        self.x = (self.fsd1 * self.as1 + self.fpd * self.ap - self.fsd2 * self.as2) / 1e6 / (self.fcd * self.b)
+        if self.x > self.xi_b * self.h0:
+            print('超筋破坏')
+            raise Exception
+        elif self.x < 2 * self.aa / 1e3:
+            print('受压钢筋未屈服')
+            self.m_resistance = self.fpd * self.ap * (self.h0 - 0.25) / 1e3
+            self.m_resistance += self.fsd1 * self.as1 * (self.h0 - self.aa / 1e3) / 1e3
+        else:
+            self.m_resistance = self.fcd * self.b * self.x * (self.h0 - self.x) * 1e3
+            self.m_resistance += self.fsd2 * self.as2 * (self.h0 - self.aa / 1e3) / 1e3
+        return self.m_resistance / md
+
+    def shear_capacity(self, vd=1, space_sv=100, fcuk=50, fsv=330, num_sv=1, p_theta=0):
+        psv = get_as(self.hoop, 2) * num_sv / (space_sv * self.b * 1e3)
+        a_2 = 1.25 if self.pnum != 0 else 1
+        p = (self.as1 + self.ap) / (self.b * self.h0) / 1e6 * 100
+        p = min(p, 2.5)
+        self.vcs = 0.45 * 1e-3 * a_2 * self.b * self.h0 * 1e6 * ((2 + 0.6 * p) * fcuk ** 0.5 * (psv * fsv)) ** 0.5
+        self.vpd = 0.75 * 1e-3 * self.fpd * self.ap * np.sin(p_theta * np.pi / 180)
+        self.vr = self.vcs + self.vpd
+        return self.vr / vd
+
 
 if __name__ == '__main__':
     # a = CircularCompress(1.6, 29, 32, 13.8, 415, 400)
@@ -235,10 +311,26 @@ if __name__ == '__main__':
     # a.nud / (3800 * 1.1)
     # a.crack_width(6000, 5000)
     # a.shear_capacity(30, 150, 1000)
-    b = RectangleCompress(1.8, 1.8, 32, 32, 17, 17, 22.4, 415, 400, 0.094, 0.094)
-    b.capacity(3434, 7867, 1)
-    print(b.m_load, b.m_resistance)
-
+    # b = RectangleCompress(1.8, 1.8, 32, 32, 17, 17, 22.4, 415, 400, 0.094, 0.094)
+    # b.capacity(3434, 7867, 1)
+    # print(b.m_load, b.m_resistance)
+    c = RectangleBend(
+        b=2.1,
+        h=2.2,
+        fcd=22.4,
+        ad1=32,
+        anum1=14,
+        fsd1=415,
+        ad2=32,
+        anum2=16,
+        fsd2=400,
+        a=40,
+        pnum=10*15
+    )
+    c.capacity(10000)
+    c.shear_capacity(num_sv=1.5 + 3 / 4, p_theta=8.7)
+    c.m_resistance
+    c.vr
 
 
 
