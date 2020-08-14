@@ -48,18 +48,23 @@ class RectangleCompress:
         self.m_load = r * nd * self.e
 
         def nud_cal(x):
-            nud = self.fcd * self.b * x * 1e3 + self.fsd2 * self.as2 / 1e3 - self.fsd1 * self.as1 / 1e3
+            sig_s = 0.0033 * 2e5 * (0.8 * self.h0 / x - 1) if x > self.xi_b * self.h0 else self.fsd1
+            sig_s2 = self.fcd * 2e5 / 3.45e4 if x < 2 * self.a2 else self.fsd2
+            nud = self.fcd * self.b * x * 1e3 + sig_s2 * self.as2 / 1e3 - sig_s * self.as1 / 1e3
             return nud
 
         def mud_cal(x):
+            sig_s2 = self.fcd * 2e5 / 3.45e4 if x < 2 * self.a2 else self.fsd2
             mud = self.fcd * self.b * x * (self.h0 - x / 2) * 1e3
-            mud += self.fsd2 * self.as2 * (self.h0 - self.a2) / 1e3
+            mud += sig_s2 * self.as2 * (self.h0 - self.a2) / 1e3
             return mud
 
         def e0_cal(x):
             return mud_cal(x) - self.e * nud_cal(x)
 
-        self.x = optimize.root(e0_cal, self.h0 * 0.5).x[0]
+        self.x = optimize.brentq(e0_cal, 0, self.h0 * 2)
+        # self.x_all = optimize.root(e0_cal, 0.5 * self.h0).x
+        # self.x = self.x_all.x[0]
 
         # x = sympy.Symbol('x')
         # self.x = sympy.solve(r * nd * 1e3 - self.fcd * self.b * x * 1e6 -
@@ -284,8 +289,9 @@ class RectangleBend:
         self.x = (self.fsd1 * self.as1 + self.fpd * self.ap - self.fsd2 * self.as2) / 1e6 / (self.fcd * self.b)
         if self.x > self.xi_b * self.h0:
             print('超筋破坏')
-            raise Exception
-        elif self.x < 2 * self.aa / 1e3:
+            # raise Exception
+            self.x = self.xi_b * self.h0
+        if self.x < 2 * self.aa / 1e3:
             print('受压钢筋未屈服')
             self.m_resistance = self.fpd * self.ap * (self.h0 - 0.25) / 1e3
             self.m_resistance += self.fsd1 * self.as1 * (self.h0 - self.aa / 1e3) / 1e3
@@ -306,31 +312,33 @@ class RectangleBend:
 
 
 if __name__ == '__main__':
-    # a = CircularCompress(1.6, 29, 32, 13.8, 415, 400)
+    a = CircularCompress(2.2, 44, 32, 13.8, 415, 400, hoop=12)
+    a.capacity(4252, 10529, r=1)
+    print(a)
     # a.capacity(3800, 5800)
     # a.nud / (3800 * 1.1)
     # a.crack_width(6000, 5000)
     # a.shear_capacity(30, 150, 1000)
     # b = RectangleCompress(1.8, 1.8, 32, 32, 17, 17, 22.4, 415, 400, 0.094, 0.094)
-    # b.capacity(3434, 7867, 1)
+    # b.capacity(3434, 1000, 1)
     # print(b.m_load, b.m_resistance)
-    c = RectangleBend(
-        b=2.1,
-        h=2.2,
-        fcd=22.4,
-        ad1=32,
-        anum1=14,
-        fsd1=415,
-        ad2=32,
-        anum2=16,
-        fsd2=400,
-        a=40,
-        pnum=10*15
-    )
-    c.capacity(10000)
-    c.shear_capacity(num_sv=1.5 + 3 / 4, p_theta=8.7)
-    c.m_resistance
-    c.vr
+    # c = RectangleBend(
+    #     b=2.1,
+    #     h=2.2,
+    #     fcd=22.4,
+    #     ad1=32,
+    #     anum1=14,
+    #     fsd1=415,
+    #     ad2=32,
+    #     anum2=16,
+    #     fsd2=400,
+    #     a=40,
+    #     pnum=10*15
+    # )
+    # c.capacity(10000)
+    # c.shear_capacity(num_sv=1.5 + 3 / 4, p_theta=8.7)
+    # c.m_resistance
+    # c.vr
 
 
 
